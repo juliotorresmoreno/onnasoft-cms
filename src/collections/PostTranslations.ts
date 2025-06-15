@@ -35,7 +35,7 @@ export const PostTranslations: CollectionConfig = {
     },
     {
       name: 'translatedContent',
-      type: 'richText',
+      type: 'textarea',
       required: true,
     },
     {

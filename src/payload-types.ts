@@ -191,21 +191,7 @@ export interface Post {
   title: string;
   slug: string;
   excerpt?: string | null;
-  content: {
-    root: {
-      type: string;
-      children: {
-        type: string;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  };
+  content: string;
   coverImage?: (number | null) | Media;
   category: number | Category;
   author: number | User;
@@ -228,21 +214,7 @@ export interface PostTranslation {
   locale: 'es' | 'en' | 'fr' | 'ja' | 'zh';
   translatedTitle: string;
   translatedExcerpt?: string | null;
-  translatedContent: {
-    root: {
-      type: string;
-      children: {
-        type: string;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  };
+  translatedContent: string;
   translatedMeta?: {
     title?: string | null;
     description?: string | null;
