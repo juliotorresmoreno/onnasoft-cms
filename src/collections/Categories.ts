@@ -36,8 +36,30 @@ export const Categories: CollectionConfig = {
       name: 'description',
       type: 'textarea',
     },
+    {
+      name: 'postCount',
+      type: 'number',
+      defaultValue: 0,
+    },
   ],
   hooks: {
+    afterRead: [
+      async ({ doc, req }) => {
+        const posts = await req.payload.find({
+          collection: 'posts',
+          where: {
+            category: {
+              equals: doc.id,
+            },
+          },
+          limit: 0,
+          depth: 0,
+        })
+
+        doc.postCount = posts.totalDocs
+        return doc
+      },
+    ],
     afterChange: [
       async ({ doc, req }) => {
         const locales: Locale[] = ['es', 'en', 'fr', 'ja', 'zh']

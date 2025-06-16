@@ -13,6 +13,12 @@ export const PostTranslations: CollectionConfig = {
       required: true,
     },
     {
+      name: 'slug',
+      type: 'text',
+      required: false,
+      unique: false,
+    },
+    {
       name: 'locale',
       type: 'select',
       required: true,
@@ -53,6 +59,7 @@ export const PostTranslations: CollectionConfig = {
       ],
     },
   ],
+  hooks: {},
   access: {
     read: () => true,
   },

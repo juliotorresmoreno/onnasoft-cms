@@ -127,6 +127,13 @@ export interface UserAuthOperations {
  */
 export interface User {
   id: number;
+  name?: string | null;
+  position?: string | null;
+  bio?: string | null;
+  linkedIn?: string | null;
+  github?: string | null;
+  website?: string | null;
+  photo?: (number | null) | Media;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -166,6 +173,7 @@ export interface Category {
   name: string;
   slug: string;
   description?: string | null;
+  postCount?: number | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -188,6 +196,7 @@ export interface CategoryTranslation {
  */
 export interface Post {
   id: number;
+  regenerate?: boolean | null;
   title: string;
   slug: string;
   excerpt?: string | null;
@@ -196,6 +205,7 @@ export interface Post {
   category: number | Category;
   author: number | User;
   published?: boolean | null;
+  featured?: boolean | null;
   publishedDate?: string | null;
   meta?: {
     title?: string | null;
@@ -211,6 +221,7 @@ export interface Post {
 export interface PostTranslation {
   id: number;
   post: number | Post;
+  slug?: string | null;
   locale: 'es' | 'en' | 'fr' | 'ja' | 'zh';
   translatedTitle: string;
   translatedExcerpt?: string | null;
@@ -300,6 +311,13 @@ export interface PayloadMigration {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  name?: T;
+  position?: T;
+  bio?: T;
+  linkedIn?: T;
+  github?: T;
+  website?: T;
+  photo?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -336,6 +354,7 @@ export interface CategoriesSelect<T extends boolean = true> {
   name?: T;
   slug?: T;
   description?: T;
+  postCount?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -356,6 +375,7 @@ export interface CategoryTranslationsSelect<T extends boolean = true> {
  * via the `definition` "posts_select".
  */
 export interface PostsSelect<T extends boolean = true> {
+  regenerate?: T;
   title?: T;
   slug?: T;
   excerpt?: T;
@@ -364,6 +384,7 @@ export interface PostsSelect<T extends boolean = true> {
   category?: T;
   author?: T;
   published?: T;
+  featured?: T;
   publishedDate?: T;
   meta?:
     | T
@@ -380,6 +401,7 @@ export interface PostsSelect<T extends boolean = true> {
  */
 export interface PostTranslationsSelect<T extends boolean = true> {
   post?: T;
+  slug?: T;
   locale?: T;
   translatedTitle?: T;
   translatedExcerpt?: T;
