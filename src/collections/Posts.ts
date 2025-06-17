@@ -74,9 +74,20 @@ export const Posts: CollectionConfig = {
       defaultValue: true,
     },
     {
-      name: 'featured',
-      type: 'checkbox',
-      defaultValue: false,
+      name: 'views',
+      type: 'number',
+      defaultValue: 0,
+      admin: {
+        readOnly: true,
+      },
+    },
+    {
+      name: 'likes',
+      type: 'number',
+      defaultValue: 0,
+      admin: {
+        readOnly: true,
+      },
     },
     {
       name: 'publishedDate',
