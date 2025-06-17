@@ -13,6 +13,16 @@ export const PostTranslations: CollectionConfig = {
       required: true,
     },
     {
+      name: 'category',
+      type: 'text',
+      required: false,
+      unique: false,
+      admin: {
+        readOnly: true,
+        hidden: true,
+      },
+    },
+    {
       name: 'slug',
       type: 'text',
       required: false,
@@ -45,18 +55,14 @@ export const PostTranslations: CollectionConfig = {
       required: true,
     },
     {
-      name: 'translatedMeta',
-      type: 'group',
-      fields: [
-        {
-          name: 'title',
-          type: 'text',
-        },
-        {
-          name: 'description',
-          type: 'textarea',
-        },
-      ],
+      name: 'document',
+      type: 'tsvector' as any,
+      required: false,
+      admin: {
+        hidden: true,
+        readOnly: true,
+        description: 'This field is automatically generated and not editable.',
+      },
     },
   ],
   hooks: {},

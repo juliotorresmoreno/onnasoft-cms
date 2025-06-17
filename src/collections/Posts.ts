@@ -2,6 +2,8 @@ import type { CollectionConfig, PayloadRequest } from 'payload'
 import { Translator } from '@/utils/translator'
 import { BlogWriter } from '@/utils/blog-writter'
 import { ImageGenerator } from '@/utils/image-generation'
+import { EmbeddingGenerator } from '@/utils/embedding-generator'
+import { pool } from '@/utils/db'
 
 type Locale = 'es' | 'en' | 'fr' | 'ja' | 'zh'
 
@@ -15,6 +17,7 @@ export const Posts: CollectionConfig = {
       name: 'regenerate',
       type: 'checkbox',
       label: 'Regenerate Translations',
+      defaultValue: true,
     },
     {
       name: 'title',
@@ -40,6 +43,18 @@ export const Posts: CollectionConfig = {
       name: 'coverImage',
       type: 'upload',
       relationTo: 'media',
+      admin: {
+        readOnly: true,
+      },
+    },
+    {
+      name: 'coverThumbnail',
+      type: 'upload',
+      relationTo: 'media',
+      required: false,
+      admin: {
+        readOnly: true,
+      },
     },
     {
       name: 'category',
@@ -56,7 +71,7 @@ export const Posts: CollectionConfig = {
     {
       name: 'published',
       type: 'checkbox',
-      defaultValue: false,
+      defaultValue: true,
     },
     {
       name: 'featured',
@@ -66,28 +81,17 @@ export const Posts: CollectionConfig = {
     {
       name: 'publishedDate',
       type: 'date',
+      defaultValue: () => new Date(),
       admin: {
         condition: (data) => Boolean(data?.published),
       },
     },
-    {
-      name: 'meta',
-      type: 'group',
-      fields: [
-        {
-          name: 'title',
-          type: 'text',
-        },
-        {
-          name: 'description',
-          type: 'textarea',
-        },
-      ],
-    },
   ],
   hooks: {
     beforeValidate: [
-      async ({ data }) => {
+      async ({ data, req }) => {
+        if (!data) return
+
         if (data?.title) {
           const translator = new Translator()
           data.slug =
@@ -98,6 +102,7 @@ export const Posts: CollectionConfig = {
               .replace(/\s+/g, '-')
               .replace(/[^a-z0-9-]/g, '')
         }
+        if (!data.coverImage) await generateCoverImages(data, req)
       },
     ],
     beforeChange: [
@@ -108,31 +113,6 @@ export const Posts: CollectionConfig = {
           }
         ).__regenerate = data.regenerate ?? false
         data.regenerate = false
-
-        console.log('Before change hook triggered for post:', data.coberImage)
-
-        const imageGenerator = new ImageGenerator()
-
-        if (!data.coverImage) {
-          const imageBlob = await imageGenerator.generate(data.title)
-          const arrayBuffer = await imageBlob.arrayBuffer()
-          const buffer = Buffer.from(arrayBuffer)
-
-          const upload = await req.payload.create({
-            collection: 'media',
-            data: {
-              alt: data.title,
-            },
-            file: {
-              data: buffer,
-              name: `${data.slug}.jpeg`,
-              mimetype: 'image/jpeg',
-              size: buffer.length,
-            },
-          })
-
-          data.coverImage = upload.id
-        }
       },
     ],
     afterChange: [
@@ -144,11 +124,102 @@ export const Posts: CollectionConfig = {
         ).__regenerate
 
         if (regenerate) {
-          write(doc, req)
+          console.log(`Regenerating translations for post: ${doc.title}`)
+          write(doc, req).then(async () => {
+            await generateEmbeddings(doc, req)
+          })
+        } else {
+          generateEmbeddings(doc, req)
         }
       },
     ],
   },
+}
+
+async function generateEmbeddings(
+  data: {
+    id: string
+    title: string
+    content: string
+  },
+  req: PayloadRequest,
+) {
+  const embeddingGenerator = new EmbeddingGenerator()
+
+  try {
+    // 1. Obtener todas las traducciones del post
+    const postTranslations = await req.payload.find({
+      collection: 'post-translations',
+      where: {
+        post: {
+          equals: data.id,
+        },
+      },
+      limit: 1000, // Aumentamos el límite para obtener todas las traducciones
+      depth: 1,
+    })
+
+    // 2. Procesar cada traducción
+    const results = await Promise.allSettled(
+      postTranslations.docs.map(async (translation) => {
+        try {
+          // Combinar título y contenido para mejor contexto
+          const content = [translation.translatedTitle, translation.translatedContent]
+            .filter(Boolean)
+            .join('\n')
+            .replace(/\s+/g, ' ')
+            .trim()
+
+          if (!content) {
+            console.warn(`Empty content for translation ${translation.id}`)
+            return
+          }
+
+          // Generar el embedding vectorial
+          const translatedEmbedding = await embeddingGenerator.generate(content)
+
+          // Convertir a formato compatible con PostgreSQL (array o vector)
+          const embeddingArray = Array.isArray(translatedEmbedding)
+            ? translatedEmbedding
+            : Object.values(translatedEmbedding)
+
+          // Insertar o actualizar en la base de datos
+          await pool.query(
+            `INSERT INTO search.post_translation_vectors 
+              (post_translation_id, locale, embedding, updated_at)
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (post_translation_id, locale)
+             DO UPDATE SET 
+               embedding = EXCLUDED.embedding,
+               updated_at = NOW()`,
+            [translation.id, translation.locale, `[${embeddingArray.join(', ')}]`],
+          )
+
+          return { success: true, translationId: translation.id }
+        } catch (error) {
+          console.error(`Error processing translation ${translation.id}:`, error)
+          throw error
+        }
+      }),
+    )
+
+    // 3. Manejar resultados y errores
+    const successful = results.filter((r) => r.status === 'fulfilled').length
+    const failed = results.filter((r) => r.status === 'rejected').length
+
+    console.log(`Embeddings generated for post "${data.title}": 
+      ${successful} successful, ${failed} failed`)
+
+    return {
+      success: true,
+      postId: data.id,
+      translationsProcessed: postTranslations.docs.length,
+      successful,
+      failed,
+    }
+  } catch (error) {
+    console.error('Error in generateEmbeddings:', error)
+  }
 }
 
 async function write(
@@ -181,6 +252,7 @@ async function write(
   })
 
   const content = await blogWriter.write(data.title ?? '', data.excerpt ?? '', data.content || '')
+  console.log(`Content generated for post: ${data.title}`)
 
   await Promise.all(
     locales.map(async (locale) => {
@@ -198,12 +270,6 @@ async function write(
 
       const translatedContent = content[locale] || ''
 
-      const translatedMetaTitle = await translator.translate(data.meta?.title ?? '', locale)
-      const translatedMetaDescription = await translator.translate(
-        data.meta?.description ?? '',
-        locale,
-      )
-
       if (existing && existing?.docs?.[0]) {
         await req.payload.update({
           collection: 'post-translations',
@@ -213,10 +279,7 @@ async function write(
             translatedExcerpt,
             translatedContent,
             slug: [category?.slug, data.slug].join('/'),
-            translatedMeta: {
-              title: translatedMetaTitle,
-              description: translatedMetaDescription,
-            },
+            category: category.slug,
           },
         })
       } else {
@@ -229,10 +292,7 @@ async function write(
             translatedExcerpt,
             translatedContent,
             slug: [category?.slug, data.slug].join('/'),
-            translatedMeta: {
-              title: translatedMetaTitle,
-              description: translatedMetaDescription,
-            },
+            category: category.slug,
           },
         })
       }
@@ -240,4 +300,55 @@ async function write(
       console.log(`Post translation for ${locale} completed: ${data.title}`)
     }),
   )
+}
+
+async function generateCoverImages(
+  data: {
+    title?: string
+    slug?: string
+    coverImage?: number
+    coverThumbnail?: number
+  },
+  req: PayloadRequest,
+) {
+  if (!data.slug || !data.title) return
+  const imageGenerator = new ImageGenerator()
+
+  const { image, thumbnail } = await imageGenerator.generate(data.title)
+  const [mainBuffer, thumbBuffer] = await Promise.all([
+    image.arrayBuffer().then((b) => Buffer.from(b)),
+    thumbnail.arrayBuffer().then((b) => Buffer.from(b)),
+  ])
+
+  const thumbnailUpload = await req.payload.create({
+    collection: 'media',
+    data: {
+      alt: data.title,
+    },
+    file: {
+      data: thumbBuffer,
+      name: `${data.slug}-thumbnail.webp`,
+      mimetype: 'image/webp',
+      size: thumbBuffer.length,
+    },
+  })
+
+  const upload = await req.payload.create({
+    collection: 'media',
+    data: {
+      alt: data.title,
+      thumbnailURL: thumbnailUpload.url,
+    },
+    file: {
+      data: mainBuffer,
+      name: `${data.slug}.webp`,
+      mimetype: 'image/webp',
+      size: mainBuffer.length,
+    },
+  })
+
+  data.coverImage = upload.id
+  data.coverThumbnail = thumbnailUpload.id
+
+  console.log(`Cover and thumbnail set for post: ${data.title}`)
 }

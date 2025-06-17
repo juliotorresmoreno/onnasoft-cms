@@ -13,6 +13,12 @@ import { Posts } from './collections/Posts'
 import { Categories } from './collections/Categories'
 import { CategoryTranslations } from './collections/CategoryTranslations'
 import { PostTranslations } from './collections/PostTranslations'
+import { runFullTextMigration } from './utils/run-fulltext-migration'
+import { EmbeddingGenerator } from './utils/embedding-generator'
+import { pool } from './utils/db'
+
+const embeddingGenerators = new EmbeddingGenerator()
+const parseVector = (vector: Float32Array<ArrayBufferLike>) => `[${vector.join(', ')}]`
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -39,5 +45,46 @@ export default buildConfig({
   plugins: [
     payloadCloudPlugin(),
     // storage-adapter-placeholder
+  ],
+  onInit: async () => {
+    await runFullTextMigration()
+  },
+  endpoints: [
+    {
+      path: '/search',
+      method: 'get',
+      handler: async (req) => {
+        const query = req.query.q as string
+        const locale = (req.query.locale as string) || 'en'
+
+        if (!query) {
+          return Response.json({ error: 'Missing query parameter' })
+        }
+
+        const vector = await embeddingGenerators.generate(query)
+        const results = await pool.query(
+          `
+          SELECT post_translation_id, locale, embedding, updated_at
+          FROM search.post_translation_vectors
+          WHERE locale = $1
+          ORDER BY embedding <-> $2::vector
+          LIMIT 5
+          `,
+          [locale, parseVector(vector)],
+        )
+
+        return Response.json({
+          docs: await req.payload.find({
+            collection: 'post-translations',
+            where: {
+              id: {
+                in: results.rows.map((row) => row.post_translation_id),
+              },
+            },
+            depth: 0,
+          }),
+        })
+      },
+    },
   ],
 })

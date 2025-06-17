@@ -1,9 +1,15 @@
+import sharp from 'sharp'
+
 export class ImageGenerator {
   private readonly token = process.env.HF_TOKEN
   private readonly model = process.env.HF_IMAGE_MODEL || 'black-forest-labs/FLUX.1-schnell'
   private readonly endpoint = 'https://router.huggingface.co/together/v1/images/generations'
 
-  async generate(prompt: string): Promise<Blob> {
+  async generate(
+    prompt: string,
+    width = 768,
+    height = 576,
+  ): Promise<{ image: Blob; thumbnail: Blob }> {
     const response = await fetch(this.endpoint, {
       method: 'POST',
       headers: {
@@ -11,9 +17,11 @@ export class ImageGenerator {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt,
+        prompt: `Don't include any text in the image. ${prompt}`,
         model: this.model,
         response_format: 'base64',
+        width,
+        height,
       }),
     })
 
@@ -28,7 +36,18 @@ export class ImageGenerator {
       throw new Error('No image returned from API')
     }
 
-    const buffer = Buffer.from(b64, 'base64')
-    return new Blob([buffer], { type: 'image/jpeg' })
+    const jpegBuffer = Buffer.from(b64, 'base64')
+
+    const webpBuffer = await sharp(jpegBuffer).toFormat('webp').toBuffer()
+    const imageBlob = new Blob([webpBuffer], { type: 'image/webp' })
+
+    const thumbnail = await this.createThumbnail(webpBuffer)
+
+    return { image: imageBlob, thumbnail }
+  }
+
+  private async createThumbnail(imageBuffer: Buffer): Promise<Blob> {
+    const thumbBuffer = await sharp(imageBuffer).resize({ width: 300 }).toFormat('webp').toBuffer()
+    return new Blob([thumbBuffer], { type: 'image/webp' })
   }
 }

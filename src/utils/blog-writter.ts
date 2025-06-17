@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { ChatCompletionMessageParam } from 'openai/resources'
+import { franc } from 'franc'
 
 type Locale = 'es' | 'en' | 'fr' | 'ja' | 'zh'
 
@@ -9,6 +10,14 @@ const languageNames: Record<Locale, string> = {
   fr: 'French',
   ja: 'Japanese',
   zh: 'Chinese',
+}
+
+const isoToLocale: Record<string, Locale> = {
+  spa: 'es',
+  eng: 'en',
+  fra: 'fr',
+  jpn: 'ja',
+  zho: 'zh',
 }
 
 export class BlogWriter {
@@ -22,12 +31,35 @@ export class BlogWriter {
   async write(title: string, excerpt: string, content: string): Promise<Record<Locale, string>> {
     if (!title || !content) return { es: '', en: '', fr: '', ja: '', zh: '' }
 
+    console.log(`[BlogWriter] Generating Markdown article for: ${title}`)
     const article = await this.generateMarkdownArticle(title, excerpt, content)
-    const translations: Record<Locale, string> = { es: article, en: '', fr: '', ja: '', zh: '' }
+    console.log(`[BlogWriter] Article generated.`)
 
-    for (const locale of ['en', 'fr', 'ja', 'zh'] as Locale[]) {
-      translations[locale] = await this.translate(article, locale)
+    const translations: Record<Locale, string> = {
+      es: '',
+      en: '',
+      fr: '',
+      ja: '',
+      zh: '',
     }
+
+    const langCode = franc(article)
+    const mainLocale = isoToLocale[langCode]
+    if (mainLocale) {
+      translations[mainLocale] = article
+    }
+
+    console.log(`[BlogWriter] Detected language: ${mainLocale}`)
+
+    const otherLocales = (Object.keys(languageNames) as Locale[]).filter((l) => l !== mainLocale)
+
+    await Promise.all(
+      otherLocales.map(async (locale) => {
+        console.log(`[BlogWriter] Translating to ${languageNames[locale]}...`)
+        translations[locale] = await this.translate(article, locale)
+        console.log(`[BlogWriter] ${languageNames[locale]} translation done.`)
+      }),
+    )
 
     return translations
   }
@@ -40,12 +72,15 @@ export class BlogWriter {
     const messages: ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content:
-          'Eres un redactor experto en tecnología. Escribe artículos extensos en formato Markdown (no JSON ni richText). Usa títulos (#) y subtítulos (##), con párrafos largos, profundidad técnica y al menos 1200 palabras. No expliques ni agregues encabezados innecesarios. Solo escribe el artículo en Markdown.',
+        content: `You are a technical writer. Write a long-form article in Markdown format (but not about Markdown itself). 
+        Use headings (#), subheadings (##), and deep technical content. Do not explain Markdown syntax. Do not include meta 
+        comments—just the article content. Format all code blocks using triple backticks with the appropriate language 
+        tag (e.g., \`\`\`js, \`\`\`python). 
+        The article must be at least 3000 words long.`,
       },
       {
         role: 'user',
-        content: `Título: ${title}\n\nContenido base: ${content}\n\nEnfoque sugerido: "${excerpt}"`,
+        content: `Title: ${title}\n\nReference content: ${content}\n\nSuggested focus: "${excerpt}"`,
       },
     ]
 

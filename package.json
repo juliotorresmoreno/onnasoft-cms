@@ -21,7 +21,9 @@
     "@payloadcms/richtext-lexical": "3.42.0",
     "@payloadcms/richtext-slate": "^3.42.0",
     "@payloadcms/ui": "3.42.0",
+    "@xenova/transformers": "^2.17.2",
     "cross-env": "^7.0.3",
+    "franc": "^6.2.0",
     "graphql": "^16.8.1",
     "next": "15.3.0",
     "openai": "^5.3.0",
@@ -48,5 +50,6 @@
     "onlyBuiltDependencies": [
       "sharp"
     ]
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610"
 }

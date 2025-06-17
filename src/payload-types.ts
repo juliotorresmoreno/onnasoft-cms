@@ -202,15 +202,12 @@ export interface Post {
   excerpt?: string | null;
   content: string;
   coverImage?: (number | null) | Media;
+  coverThumbnail?: (number | null) | Media;
   category: number | Category;
   author: number | User;
   published?: boolean | null;
   featured?: boolean | null;
   publishedDate?: string | null;
-  meta?: {
-    title?: string | null;
-    description?: string | null;
-  };
   updatedAt: string;
   createdAt: string;
 }
@@ -221,15 +218,12 @@ export interface Post {
 export interface PostTranslation {
   id: number;
   post: number | Post;
+  category?: string | null;
   slug?: string | null;
   locale: 'es' | 'en' | 'fr' | 'ja' | 'zh';
   translatedTitle: string;
   translatedExcerpt?: string | null;
   translatedContent: string;
-  translatedMeta?: {
-    title?: string | null;
-    description?: string | null;
-  };
   updatedAt: string;
   createdAt: string;
 }
@@ -381,17 +375,12 @@ export interface PostsSelect<T extends boolean = true> {
   excerpt?: T;
   content?: T;
   coverImage?: T;
+  coverThumbnail?: T;
   category?: T;
   author?: T;
   published?: T;
   featured?: T;
   publishedDate?: T;
-  meta?:
-    | T
-    | {
-        title?: T;
-        description?: T;
-      };
   updatedAt?: T;
   createdAt?: T;
 }
@@ -401,17 +390,13 @@ export interface PostsSelect<T extends boolean = true> {
  */
 export interface PostTranslationsSelect<T extends boolean = true> {
   post?: T;
+  category?: T;
   slug?: T;
   locale?: T;
   translatedTitle?: T;
   translatedExcerpt?: T;
   translatedContent?: T;
-  translatedMeta?:
-    | T
-    | {
-        title?: T;
-        description?: T;
-      };
+  document?: T;
   updatedAt?: T;
   createdAt?: T;
 }
