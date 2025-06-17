@@ -16,6 +16,7 @@ import { PostTranslations } from './collections/PostTranslations'
 import { runFullTextMigration } from './utils/run-fulltext-migration'
 import { EmbeddingGenerator } from './utils/embedding-generator'
 import { pool } from './utils/db'
+import NewsletterSubscribers from './collections/NewsletterSubscribers'
 
 const embeddingGenerators = new EmbeddingGenerator()
 const parseVector = (vector: Float32Array<ArrayBufferLike>) => `[${vector.join(', ')}]`
@@ -30,7 +31,15 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Categories, CategoryTranslations, Posts, PostTranslations],
+  collections: [
+    Users,
+    Media,
+    Categories,
+    CategoryTranslations,
+    Posts,
+    PostTranslations,
+    NewsletterSubscribers,
+  ],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {
@@ -42,10 +51,7 @@ export default buildConfig({
     },
   }),
   sharp,
-  plugins: [
-    payloadCloudPlugin(),
-    // storage-adapter-placeholder
-  ],
+  plugins: [payloadCloudPlugin()],
   onInit: async () => {
     await runFullTextMigration()
   },
@@ -81,7 +87,7 @@ export default buildConfig({
                 in: results.rows.map((row) => row.post_translation_id),
               },
             },
-            depth: 0,
+            depth: 3,
           }),
         )
       },
