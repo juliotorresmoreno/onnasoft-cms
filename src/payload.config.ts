@@ -73,8 +73,8 @@ export default buildConfig({
           [locale, parseVector(vector)],
         )
 
-        return Response.json({
-          docs: await req.payload.find({
+        return Response.json(
+          await req.payload.find({
             collection: 'post-translations',
             where: {
               id: {
@@ -83,7 +83,7 @@ export default buildConfig({
             },
             depth: 0,
           }),
-        })
+        )
       },
     },
   ],
