@@ -28,6 +28,15 @@ export class BlogWriter {
 
   private readonly model = process.env.BLOGWRITER_OPENAI_API_MODEL || 'gpt-4'
 
+  stripSurroundingMarkdown(text: string): string {
+    if (!text) return ''
+    const lines = text.trim().split('\n')
+    if (lines[0].trim() === '```markdown' && lines[lines.length - 1].trim() === '```') {
+      return lines.slice(1, -1).join('\n')
+    }
+    return text
+  }
+
   async write(title: string, excerpt: string, content: string): Promise<Record<Locale, string>> {
     if (!title || !content) return { es: '', en: '', fr: '', ja: '', zh: '' }
 
@@ -89,7 +98,7 @@ export class BlogWriter {
       messages,
     })
 
-    return res.choices?.[0]?.message?.content?.trim() || ''
+    return this.stripSurroundingMarkdown(res.choices?.[0]?.message?.content?.trim() || '')
   }
 
   private async translate(markdown: string, targetLang: Locale): Promise<string> {
