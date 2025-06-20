@@ -17,7 +17,7 @@ export class ImageGenerator {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt: `Don't include any text in the image. ${prompt}`,
+        prompt: `${prompt}`,
         model: this.model,
         response_format: 'base64',
         width,

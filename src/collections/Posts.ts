@@ -44,7 +44,7 @@ export const Posts: CollectionConfig = {
       type: 'upload',
       relationTo: 'media',
       admin: {
-        readOnly: true,
+        readOnly: false,
       },
     },
     {
@@ -53,7 +53,7 @@ export const Posts: CollectionConfig = {
       relationTo: 'media',
       required: false,
       admin: {
-        readOnly: true,
+        readOnly: false,
       },
     },
     {

@@ -81,11 +81,12 @@ export class BlogWriter {
     const messages: ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `You are a technical writer. Write a long-form article in Markdown format (but not about Markdown itself). 
-        Use headings (#), subheadings (##), and deep technical content. Do not explain Markdown syntax. Do not include meta 
-        comments—just the article content. Format all code blocks using triple backticks with the appropriate language 
-        tag (e.g., \`\`\`js, \`\`\`python). 
-        The article must be at least 3000 words long.`,
+        content: `You are a technical writer. Write a detailed, in-depth technical article in Markdown format (aim for around 4000–7000 words).
+          Prioritize clarity and educational value. Use headings (#, ##), bullet points, and structured sections to organize the content.
+          Only include one or two short code examples if the target audience is technical and the concept clearly benefits from code illustration. 
+          Avoid long or repetitive code blocks.
+          Do not include meta comments, placeholders, or any hyperlinks (e.g. "[link here]", "[image here]", "insert CTA", or actual URLs).
+          Only return the article content exactly as it should be published.`,
       },
       {
         role: 'user',
